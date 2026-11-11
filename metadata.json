@@ -1,0 +1,6 @@
+{
+  "name": "Nexus AI Assistant",
+  "description": "Voice-first autonomous AI assistant powered by Gemini with AI tool scouting and self-improvement proposals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

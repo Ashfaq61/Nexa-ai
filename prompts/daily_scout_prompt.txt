@@ -1,0 +1,12 @@
+Analyze the following latest AI agent repositories from GitHub and top trending models/spaces from Hugging Face.
+
+Generate a structured daily intelligence report adhering to these guidelines:
+1. Executive Summary: 2-3 sentences on noteworthy trends in agent autonomy, self-improvement, and small multimodal models.
+2. High-Impact Agent Tools:
+   - Identify new capabilities, benchmark improvements, or novel architectural patterns (e.g. reflex loops, recursive planning).
+   - Evaluate suitability for mobile or lightweight backend deployment.
+3. Safe Upgrade Proposals:
+   - Compare discovered tools against Nexus AI's current capabilities.
+   - Outline clear, step-by-step proposals for review.
+   - Emphasize sandbox isolation, human-in-the-loop gates, and zero silent code execution.
+4. Action Items for the Operator.
