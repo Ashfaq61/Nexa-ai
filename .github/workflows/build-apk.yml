@@ -4,11 +4,14 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build-apk:
-    name: Build Debug APK
+    name: Build Nexus AI V5.0 Debug APK
     runs-on: ubuntu-latest
 
     steps:
@@ -42,10 +45,11 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           flutter build apk --debug --dart-define=GEMINI_API_KEY="${GEMINI_API_KEY}"
+          cp build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/Nexus_AI_V5.0.apk
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nexus-ai-assistant-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: Nexus_AI_V5.0-APK
+          path: build/app/outputs/flutter-apk/Nexus_AI_V5.0.apk
           retention-days: 14

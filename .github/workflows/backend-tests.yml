@@ -6,6 +6,7 @@ on:
     paths:
       - 'backend/**'
       - 'tests/backend/**'
+      - '.github/workflows/backend-tests.yml'
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -30,5 +31,7 @@ jobs:
           pip install httpx pytest pytest-asyncio
 
       - name: Run Backend Tests
+        env:
+          PYTHONPATH: .
         run: |
-          pytest tests/backend
+          python -m pytest tests/backend -v
