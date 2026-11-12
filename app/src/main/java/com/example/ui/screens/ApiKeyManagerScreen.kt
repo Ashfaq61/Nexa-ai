@@ -5,6 +5,8 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -151,7 +153,9 @@ fun ApiKeyManagerScreen(
             Text("Select Provider to Manage", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(6.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 ApiProvider.values().forEach { provider ->
@@ -166,10 +170,14 @@ fun ApiKeyManagerScreen(
                             Text(
                                 when (provider) {
                                     ApiProvider.GEMINI -> "Gemini"
-                                    ApiProvider.OPENROUTER -> "OpenRouter"
                                     ApiProvider.GROQ -> "Groq"
+                                    ApiProvider.OPENROUTER -> "OpenRouter"
+                                    ApiProvider.DEEPSEEK -> "DeepSeek"
+                                    ApiProvider.ANTHROPIC -> "Anthropic"
                                     ApiProvider.HUGGINGFACE -> "HuggingFace"
-                                    ApiProvider.CUSTOM_OPENAI -> "Custom API"
+                                    ApiProvider.OPENAI -> "OpenAI"
+                                    ApiProvider.OLLAMA_LOCAL -> "Ollama Local (No Key)"
+                                    ApiProvider.CUSTOM_API -> "Custom API"
                                 },
                                 fontSize = 11.sp
                             )
@@ -178,6 +186,22 @@ fun ApiKeyManagerScreen(
                             selectedContainerColor = CyberSurfaceCard,
                             selectedLabelColor = NeonCyan
                         )
+                    )
+                }
+            }
+
+            if (selectedProviderTab.isLocal) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(CyberSurfaceCard, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        "Hardware requirement: ${selectedProviderTab.hardwareReqs}. Does not require cloud API keys.",
+                        color = NeonPurple,
+                        fontSize = 11.sp
                     )
                 }
             }
@@ -333,10 +357,14 @@ fun ApiKeyManagerScreen(
                             Text(
                                 when (selectedProviderTab) {
                                     ApiProvider.GEMINI -> "AIzaSy..."
-                                    ApiProvider.OPENROUTER -> "sk-or-v1-..."
                                     ApiProvider.GROQ -> "gsk_..."
+                                    ApiProvider.OPENROUTER -> "sk-or-v1-..."
+                                    ApiProvider.DEEPSEEK -> "sk-..."
+                                    ApiProvider.ANTHROPIC -> "sk-ant-..."
                                     ApiProvider.HUGGINGFACE -> "hf_..."
-                                    ApiProvider.CUSTOM_OPENAI -> "sk-..."
+                                    ApiProvider.OPENAI -> "sk-proj-..."
+                                    ApiProvider.OLLAMA_LOCAL -> "http://localhost:11434"
+                                    ApiProvider.CUSTOM_API -> "https://api.yourdomain.com/v1"
                                 },
                                 fontSize = 11.sp
                             )

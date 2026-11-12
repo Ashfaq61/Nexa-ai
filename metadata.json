@@ -1,6 +1,6 @@
 {
-  "name": "Nexus AI Assistant",
-  "description": "Voice-first autonomous AI assistant powered by Gemini with AI tool scouting and self-improvement proposals.",
+  "name": "NOVA AI",
+  "description": "NOVA AI V7.0 - Autonomous Voice-First Android AI Assistant with Multi-Agent Intelligence, Phone Control, and Hardware Repair.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

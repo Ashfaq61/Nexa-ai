@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Nexus AI Assistant"
+rootProject.name = "NOVA AI"
 
 include(":app")

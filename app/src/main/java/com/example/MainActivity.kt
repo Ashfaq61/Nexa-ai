@@ -32,18 +32,22 @@ import kotlinx.coroutines.launch
 import java.util.*
 
 enum class NexusScreen(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val category: String) {
-    HOME("Dashboard", Icons.Default.Dashboard, "Intelligence"),
-    CHAT("AI Chat", Icons.Default.Chat, "Intelligence"),
-    VOICE("Live Voice", Icons.Default.Mic, "Intelligence"),
-    AGENTS("9 Agents", Icons.Default.Hub, "Intelligence"),
+    HOME("Home", Icons.Default.Dashboard, "Core Studio"),
+    CHAT("AI Chat", Icons.Default.Chat, "Core Studio"),
+    VOICE("Voice Assistant", Icons.Default.Mic, "Core Studio"),
+    VISION("AI Vision", Icons.Default.Visibility, "Core Studio"),
+    MOBILE_CONTROL("Phone Control", Icons.Default.Smartphone, "Tools & Actions"),
+    AUTOMATION("Automation", Icons.Default.Schedule, "Tools & Actions"),
+    SOCIAL_MEDIA("Social Media", Icons.Default.Share, "Tools & Actions"),
+    DEV_STUDIO("Dev Studio", Icons.Default.Code, "Tools & Actions"),
+    AGENTS("10 Agents", Icons.Default.Hub, "Intelligence"),
+    RESEARCH("Deep Research", Icons.Default.TravelExplore, "Intelligence"),
+    MEMORY("Memory Store", Icons.Default.Psychology, "Intelligence"),
     MOBILE_REPAIR("Mobile Repair", Icons.Default.Build, "Hardware"),
-    MOBILE_CONTROL("Mobile Control", Icons.Default.Smartphone, "Tools"),
-    RESEARCH("AI Research", Icons.Default.TravelExplore, "Tools"),
-    DEV_STUDIO("Dev Studio", Icons.Default.Code, "Tools"),
-    API_SETTINGS("API Keys", Icons.Default.Key, "System"),
-    SECURITY_CENTER("Security", Icons.Default.Security, "System"),
-    HISTORY("History", Icons.Default.History, "System"),
-    SETTINGS("Settings", Icons.Default.Settings, "System")
+    API_SETTINGS("Multi-AI Brain", Icons.Default.Key, "System & Security"),
+    SECURITY_CENTER("Security", Icons.Default.Security, "System & Security"),
+    HISTORY("History", Icons.Default.History, "System & Security"),
+    SETTINGS("Settings", Icons.Default.Settings, "System & Security")
 }
 
 data class ChatMessageItem(val id: String, val text: String, val isUser: Boolean, val providerModel: String = "Gemini 1.5 Pro", val timestamp: Long = System.currentTimeMillis())
@@ -63,7 +67,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
         setContent {
             MyApplicationTheme {
-                NexusMainAppV5(
+                NovaMainAppV7(
                     onSpeak = { text -> speakOut(text) },
                     onToggleTorch = { toggleTorch() },
                     onAdjustVolume = { up -> adjustVolume(up) },
@@ -81,7 +85,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun speakOut(text: String) {
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "nexus_tts")
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "nova_tts")
     }
 
     private fun toggleTorch() {
@@ -124,7 +128,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NexusMainAppV5(
+fun NovaMainAppV7(
     onSpeak: (String) -> Unit,
     onToggleTorch: () -> Unit,
     onAdjustVolume: (Boolean) -> Unit,
@@ -155,13 +159,13 @@ fun NexusMainAppV5(
                     Box(modifier = Modifier.size(12.dp).background(NeonEmerald, CircleShape))
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        Text("PROJECT NEXUS V5.0", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 15.sp, letterSpacing = 1.sp)
-                        Text("Autonomous Android Intelligence", color = TextSecondary, fontSize = 11.sp)
+                        Text("NOVA AI V7.0", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 16.sp, letterSpacing = 1.sp)
+                        Text("Autonomous Android AI Studio", color = TextSecondary, fontSize = 11.sp)
                     }
                 }
                 HorizontalDivider(color = CyberBackground, modifier = Modifier.padding(vertical = 12.dp))
 
-                listOf("Intelligence", "Hardware", "Tools", "System").forEach { category ->
+                listOf("Core Studio", "Tools & Actions", "Intelligence", "Hardware", "System & Security").forEach { category ->
                     Text(
                         category.uppercase(),
                         color = NeonCyan.copy(alpha = 0.7f),
@@ -206,7 +210,7 @@ fun NexusMainAppV5(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "NEXUS V5.0 • ${currentScreen.title.uppercase()}",
+                                text = "NOVA AI • ${currentScreen.title.uppercase()}",
                                 fontWeight = FontWeight.Bold,
                                 color = NeonCyan,
                                 fontSize = 15.sp,
@@ -222,8 +226,8 @@ fun NexusMainAppV5(
                     actions = {
                         AssistChip(
                             onClick = { currentScreen = NexusScreen.API_SETTINGS },
-                            label = { Text("Vault OK", fontSize = 10.5.sp, color = NeonEmerald) },
-                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = NeonEmerald, modifier = Modifier.size(12.dp)) },
+                            label = { Text("Multi-Brain", fontSize = 10.5.sp, color = NeonEmerald) },
+                            leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = NeonEmerald, modifier = Modifier.size(12.dp)) },
                             colors = AssistChipDefaults.assistChipColors(containerColor = CyberSurfaceCard)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -236,14 +240,14 @@ fun NexusMainAppV5(
                     NexusScreen.HOME,
                     NexusScreen.CHAT,
                     NexusScreen.VOICE,
-                    NexusScreen.MOBILE_REPAIR,
-                    NexusScreen.API_SETTINGS
+                    NexusScreen.VISION,
+                    NexusScreen.MOBILE_CONTROL
                 )
                 NavigationBar(containerColor = CyberSurface, tonalElevation = 8.dp) {
                     primaryTabs.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(screen.icon, contentDescription = screen.title) },
-                            label = { Text(screen.title, fontSize = 10.sp, maxLines = 1) },
+                            label = { Text(screen.title, fontSize = 9.5.sp, maxLines = 1) },
                             selected = currentScreen == screen,
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = NeonCyan,
@@ -268,15 +272,19 @@ fun NexusMainAppV5(
                     NexusScreen.HOME -> HomeScreen(onNavigate = { currentScreen = it }, onSpeak = onSpeak)
                     NexusScreen.CHAT -> ChatScreen(onSpeak = onSpeak)
                     NexusScreen.VOICE -> VoiceScreen(onSpeak = onSpeak)
-                    NexusScreen.AGENTS -> AgentsScreen()
-                    NexusScreen.MOBILE_REPAIR -> MobileRepairScreen(onSpeak = onSpeak)
+                    NexusScreen.VISION -> VisionScreen(onSpeak = onSpeak)
                     NexusScreen.MOBILE_CONTROL -> MobileControlScreen(
                         onToggleTorch = onToggleTorch,
                         onAdjustVolume = onAdjustVolume,
                         onLaunchIntent = onLaunchIntent,
                         onOpenSettings = onOpenSettings
                     )
+                    NexusScreen.AGENTS -> AgentsScreen()
                     NexusScreen.RESEARCH -> ResearchScreen(onLaunchIntent = onLaunchIntent)
+                    NexusScreen.AUTOMATION -> AutomationScreen(onSpeak = onSpeak)
+                    NexusScreen.MEMORY -> MemoryScreen()
+                    NexusScreen.SOCIAL_MEDIA -> SocialMediaScreen(onLaunchUrl = onLaunchIntent)
+                    NexusScreen.MOBILE_REPAIR -> MobileRepairScreen(onSpeak = onSpeak)
                     NexusScreen.DEV_STUDIO -> DevStudioScreen()
                     NexusScreen.API_SETTINGS -> ApiKeyManagerScreen(onLaunchUrl = onLaunchIntent)
                     NexusScreen.SECURITY_CENTER -> SecurityCenterScreen()

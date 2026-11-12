@@ -8,7 +8,9 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,12 +32,14 @@ import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class LiveVoiceState(val label: String, val color: Color) {
-    DISCONNECTED("DISCONNECTED / IDLE", TextSecondary),
-    CONNECTING("CONNECTING TO GEMINI LIVE...", NeonPurple),
-    LISTENING("LISTENING TO YOUR VOICE...", NeonDanger),
-    SPEAKING("MAHI IS SPEAKING...", NeonEmerald)
+enum class NovaVoiceState(val label: String, val primaryColor: Color, val secondaryColor: Color) {
+    IDLE("IDLE / READY", NeonCyan, NeonPurple),
+    CONNECTING("CONNECTING TO LIVE STREAM...", NeonPurple, NeonCyan),
+    LISTENING("LISTENING (VOICE ACTIVE)...", NeonDanger, NeonPurple),
+    SPEAKING("NOVA IS SPEAKING...", NeonEmerald, NeonCyan)
 }
+
+data class VoiceProfile(val id: String, val name: String, val gender: String, val language: String)
 
 @Composable
 fun VoiceScreen(
@@ -43,29 +47,44 @@ fun VoiceScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var currentState by remember { mutableStateOf(LiveVoiceState.DISCONNECTED) }
-    var statusDialogue by remember { mutableStateOf("Tap the central core to connect with Mahi") }
-    var selectedVoiceLanguage by remember { mutableStateOf("Bilingual (English + Urdu)") }
-    var isMuted by remember { mutableStateOf(false) }
+    var voiceState by remember { mutableStateOf(NovaVoiceState.IDLE) }
+    var statusText by remember { mutableStateOf("Say 'Hey Nova' or tap the glowing orb to begin") }
+    var selectedLanguage by remember { mutableStateOf("Auto (Urdu / Hindi / English)") }
+    var isWakeWordActive by remember { mutableStateOf(true) }
     var executedActionLog by remember { mutableStateOf<String?>(null) }
 
+    // 8 Selectable Voices
+    val voices = remember {
+        listOf(
+            VoiceProfile("nova", "Nova", "Female", "English/Urdu/Hindi"),
+            VoiceProfile("aoede", "Aoede", "Female", "Energetic English"),
+            VoiceProfile("kore", "Kore", "Female", "Calm & Warm"),
+            VoiceProfile("zoya", "Zoya", "Female", "Urdu/Hindi Melodic"),
+            VoiceProfile("fenrir", "Fenrir", "Male", "Deep & Authoritative"),
+            VoiceProfile("puck", "Puck", "Male", "Playful & Fast"),
+            VoiceProfile("charon", "Charon", "Male", "Balanced Technical"),
+            VoiceProfile("kabir", "Kabir", "Male", "Hindi/Urdu Baritone")
+        )
+    }
+    var selectedVoice by remember { mutableStateOf(voices.first()) }
+
     // Pulsing animations for glowing core
-    val infiniteTransition = rememberInfiniteTransition(label = "mahi_live_pulse")
+    val infiniteTransition = rememberInfiniteTransition(label = "nova_live_pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = when (currentState) {
-            LiveVoiceState.LISTENING -> 1.28f
-            LiveVoiceState.SPEAKING -> 1.15f
-            LiveVoiceState.CONNECTING -> 1.10f
-            LiveVoiceState.DISCONNECTED -> 1.04f
+        targetValue = when (voiceState) {
+            NovaVoiceState.LISTENING -> 1.26f
+            NovaVoiceState.SPEAKING -> 1.15f
+            NovaVoiceState.CONNECTING -> 1.10f
+            NovaVoiceState.IDLE -> 1.05f
         },
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = when (currentState) {
-                    LiveVoiceState.LISTENING -> 650
-                    LiveVoiceState.SPEAKING -> 900
-                    LiveVoiceState.CONNECTING -> 1100
-                    LiveVoiceState.DISCONNECTED -> 2000
+                durationMillis = when (voiceState) {
+                    NovaVoiceState.LISTENING -> 650
+                    NovaVoiceState.SPEAKING -> 900
+                    NovaVoiceState.CONNECTING -> 1100
+                    NovaVoiceState.IDLE -> 2000
                 },
                 easing = EaseInOutQuad
             ),
@@ -76,33 +95,40 @@ fun VoiceScreen(
 
     // Waveform heights animation during speaking
     val wave1 by infiniteTransition.animateFloat(
-        initialValue = 12f,
-        targetValue = if (currentState == LiveVoiceState.SPEAKING) 48f else 14f,
+        initialValue = 10f,
+        targetValue = if (voiceState == NovaVoiceState.SPEAKING) 46f else 12f,
         animationSpec = infiniteRepeatable(tween(350, easing = LinearEasing), RepeatMode.Reverse),
         label = "wave_1"
     )
     val wave2 by infiniteTransition.animateFloat(
-        initialValue = 20f,
-        targetValue = if (currentState == LiveVoiceState.SPEAKING) 60f else 18f,
+        initialValue = 16f,
+        targetValue = if (voiceState == NovaVoiceState.SPEAKING) 58f else 16f,
         animationSpec = infiniteRepeatable(tween(420, easing = LinearEasing), RepeatMode.Reverse),
         label = "wave_2"
     )
     val wave3 by infiniteTransition.animateFloat(
-        initialValue = 14f,
-        targetValue = if (currentState == LiveVoiceState.SPEAKING) 52f else 12f,
+        initialValue = 12f,
+        targetValue = if (voiceState == NovaVoiceState.SPEAKING) 50f else 10f,
         animationSpec = infiniteRepeatable(tween(280, easing = LinearEasing), RepeatMode.Reverse),
         label = "wave_3"
     )
 
-    // Tool execution helper
-    fun executeBrowserAction(url: String, actionName: String) {
-        executedActionLog = "Function Call: openWebsite('$url') → Executed"
+    // Avatar halo glow animation
+    val haloRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(12000, easing = LinearEasing)),
+        label = "halo_rotate"
+    )
+
+    fun executeQuickTool(url: String, actionName: String) {
+        executedActionLog = "Executed tool: openWebsite('$url')"
         try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             context.startActivity(intent)
-            Toast.makeText(context, "Mahi opened $actionName", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Opened $actionName", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(context, "Could not open $url", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Could not launch $url", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -110,17 +136,17 @@ fun VoiceScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(CyberBackground)
-            .padding(18.dp),
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Top Status Bar: Live State & Connection telemetry
+        // Top Header: Animated Avatar & Live Telemetry
         Card(
             colors = CardDefaults.cardColors(containerColor = CyberSurfaceCard),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, currentState.color.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                .border(1.dp, NeonPurple.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
         ) {
             Row(
                 modifier = Modifier
@@ -129,154 +155,183 @@ fun VoiceScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Mini Female AI Avatar Icon
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
-                            .background(currentState.color, CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "MAHI LIVE 3.1 • AUDIO-TO-AUDIO",
-                        color = NeonCyan,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
+                            .size(38.dp)
+                            .background(
+                                Brush.linearGradient(listOf(NeonCyan, NeonPurple)),
+                                CircleShape
+                            )
+                            .border(1.5.dp, Color.White, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Face,
+                            contentDescription = "Nova Avatar",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text("NOVA V7.0 LIVE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("Voice: ${selectedVoice.name} (${selectedVoice.gender})", color = TextSecondary, fontSize = 10.5.sp)
+                    }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .background(currentState.color.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        currentState.name,
-                        color = currentState.color,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                // VAD / Wake word chip
+                AssistChip(
+                    onClick = {
+                        isWakeWordActive = !isWakeWordActive
+                        Toast.makeText(context, if (isWakeWordActive) "Wake-Word 'Hey Nova' Active" else "Wake-Word Inactive", Toast.LENGTH_SHORT).show()
+                    },
+                    label = { Text(if (isWakeWordActive) "'Hey Nova' ON" else "VAD Manual", fontSize = 10.5.sp, color = NeonEmerald) },
+                    leadingIcon = { Icon(Icons.Default.Hearing, contentDescription = null, tint = NeonEmerald, modifier = Modifier.size(13.dp)) },
+                    colors = AssistChipDefaults.assistChipColors(containerColor = CyberSurface)
+                )
             }
         }
 
-        // Animated Central Voice Core / Mic
+        // Central Glowing Blue & Purple Voice Orb
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(260.dp)
+                .size(250.dp)
                 .scale(pulseScale)
                 .clickable {
                     coroutineScope.launch {
-                        when (currentState) {
-                            LiveVoiceState.DISCONNECTED -> {
-                                currentState = LiveVoiceState.CONNECTING
-                                statusDialogue = "Connecting live PCM16 audio stream to Mahi..."
-                                delay(1200)
+                        when (voiceState) {
+                            NovaVoiceState.IDLE -> {
+                                voiceState = NovaVoiceState.CONNECTING
+                                statusText = "Connecting real-time bidirectional audio stream..."
+                                delay(900)
 
-                                currentState = LiveVoiceState.LISTENING
-                                statusDialogue = "Mahi is listening! Speak casually in English or Urdu..."
+                                voiceState = NovaVoiceState.LISTENING
+                                statusText = "Listening for your voice in English, Urdu, or Hindi..."
                                 delay(2200)
 
-                                currentState = LiveVoiceState.SPEAKING
-                                val reply = "Hey handsome! I'm here. See? No boring robot voice — just your favorite witty girl ready to talk. Tell me everything!"
-                                statusDialogue = "\"$reply\""
+                                voiceState = NovaVoiceState.SPEAKING
+                                val reply = "Salam Operator! NOVA AI Version 7.0 is active. Voice streaming nominal, 10-agent orchestrator connected, and mobile phone control online."
+                                statusText = "\"$reply\""
                                 onSpeak(reply)
-                                delay(4500)
+                                delay(4400)
 
-                                currentState = LiveVoiceState.LISTENING
-                                statusDialogue = "Listening... say 'Mahi open YouTube' or ask a hardware question!"
+                                voiceState = NovaVoiceState.LISTENING
+                                statusText = "Listening... say 'Open YouTube', ask a hardware question, or command phone controls!"
                             }
-                            LiveVoiceState.SPEAKING -> {
-                                // User barge-in interrupt
-                                currentState = LiveVoiceState.LISTENING
-                                statusDialogue = "Barge-in detected! Mahi stopped speaking to listen to you..."
+                            NovaVoiceState.SPEAKING -> {
+                                // Instant barge-in / interrupt
+                                voiceState = NovaVoiceState.LISTENING
+                                statusText = "Barge-in detected: NOVA interrupted to listen to you..."
                                 Toast.makeText(context, "Voice interrupted by user", Toast.LENGTH_SHORT).show()
                             }
-                            LiveVoiceState.LISTENING -> {
-                                currentState = LiveVoiceState.SPEAKING
-                                val sarcasticReply = "Arey wah janab! Itni gehri khamoshi? Kuch bolo bhi na, sirf mujhe taadte rahoge? 😉"
-                                statusDialogue = "\"$sarcasticReply\""
-                                onSpeak(sarcasticReply)
-                                delay(3800)
-                                currentState = LiveVoiceState.LISTENING
-                                statusDialogue = "Listening for your voice command..."
+                            NovaVoiceState.LISTENING -> {
+                                voiceState = NovaVoiceState.SPEAKING
+                                val quickReply = "Ji Janab! Main aapki aawaz sun rahi hoon. Chaliye batayein, aaj kaunsa task execute karna hai? ✨"
+                                statusText = "\"$quickReply\""
+                                onSpeak(quickReply)
+                                delay(3600)
+                                voiceState = NovaVoiceState.LISTENING
+                                statusText = "Listening for next voice command..."
                             }
-                            LiveVoiceState.CONNECTING -> {
-                                currentState = LiveVoiceState.DISCONNECTED
-                                statusDialogue = "Connection cancelled by user."
+                            NovaVoiceState.CONNECTING -> {
+                                voiceState = NovaVoiceState.IDLE
+                                statusText = "Cancelled. Tap to reconnect."
                             }
                         }
                     }
                 }
         ) {
-            // Outer glow ring
+            // Glowing Blue & Purple Radial Ambient Halo
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.radialGradient(
                             listOf(
-                                currentState.color.copy(alpha = 0.35f),
-                                currentState.color.copy(alpha = 0.05f),
+                                NeonPurple.copy(alpha = 0.40f),
+                                NeonCyan.copy(alpha = 0.20f),
                                 Color.Transparent
                             )
                         ),
                         CircleShape
                     )
-                    .border(2.dp, currentState.color.copy(alpha = 0.5f), CircleShape)
+                    .border(2.dp, NeonCyan.copy(alpha = 0.5f), CircleShape)
             )
 
-            // Mid ring
+            // Inner Core with Waveform or Mic
             Box(
                 modifier = Modifier
-                    .size(190.dp)
+                    .size(175.dp)
                     .background(CyberSurfaceCard, CircleShape)
-                    .border(3.dp, currentState.color, CircleShape),
+                    .border(
+                        3.dp,
+                        Brush.sweepGradient(listOf(NeonCyan, NeonPurple, NeonEmerald, NeonCyan)),
+                        CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                // Waveform bars inside the circle when speaking
-                if (currentState == LiveVoiceState.SPEAKING) {
+                if (voiceState == NovaVoiceState.SPEAKING) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(modifier = Modifier.width(4.dp).height(wave1.dp).background(NeonEmerald, RoundedCornerShape(2.dp)))
-                        Box(modifier = Modifier.width(4.dp).height(wave2.dp).background(NeonCyan, RoundedCornerShape(2.dp)))
-                        Box(modifier = Modifier.width(4.dp).height(wave3.dp).background(NeonEmerald, RoundedCornerShape(2.dp)))
-                        Box(modifier = Modifier.width(4.dp).height(wave1.dp).background(NeonPurple, RoundedCornerShape(2.dp)))
+                        Box(modifier = Modifier.width(4.dp).height(wave1.dp).background(NeonCyan, RoundedCornerShape(2.dp)))
+                        Box(modifier = Modifier.width(4.dp).height(wave2.dp).background(NeonEmerald, RoundedCornerShape(2.dp)))
+                        Box(modifier = Modifier.width(4.dp).height(wave3.dp).background(NeonPurple, RoundedCornerShape(2.dp)))
+                        Box(modifier = Modifier.width(4.dp).height(wave1.dp).background(NeonCyan, RoundedCornerShape(2.dp)))
+                        Box(modifier = Modifier.width(4.dp).height(wave2.dp).background(NeonEmerald, RoundedCornerShape(2.dp)))
                     }
                 } else {
                     Icon(
-                        when (currentState) {
-                            LiveVoiceState.DISCONNECTED -> Icons.Default.PowerSettingsNew
-                            LiveVoiceState.CONNECTING -> Icons.Default.Sync
-                            LiveVoiceState.LISTENING -> Icons.Default.Mic
-                            LiveVoiceState.SPEAKING -> Icons.Default.GraphicEq
+                        when (voiceState) {
+                            NovaVoiceState.IDLE -> Icons.Default.Mic
+                            NovaVoiceState.CONNECTING -> Icons.Default.Sync
+                            NovaVoiceState.LISTENING -> Icons.Default.GraphicEq
+                            NovaVoiceState.SPEAKING -> Icons.Default.VolumeUp
                         },
                         contentDescription = "Voice State",
-                        tint = if (currentState == LiveVoiceState.DISCONNECTED) TextSecondary else Color.White,
-                        modifier = Modifier.size(72.dp)
+                        tint = if (voiceState == NovaVoiceState.IDLE) NeonCyan else Color.White,
+                        modifier = Modifier.size(68.dp)
                     )
                 }
             }
         }
 
-        // Live Dialogue Transcript & Function Log
+        // Voice Selector Strip (8 Male & Female Voices)
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text("SELECT ASSISTANT VOICE (8 PROFILES)", color = TextSecondary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                voices.forEach { v ->
+                    FilterChip(
+                        selected = selectedVoice == v,
+                        onClick = {
+                            selectedVoice = v
+                            Toast.makeText(context, "Voice changed to ${v.name} (${v.gender})", Toast.LENGTH_SHORT).show()
+                        },
+                        label = { Text("${v.name} (${v.gender[0]})", fontSize = 10.5.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = CyberSurfaceCard,
+                            selectedLabelColor = NeonCyan
+                        )
+                    )
+                }
+            }
+        }
+
+        // Dialogue Transcript & Actions
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                currentState.label,
-                color = currentState.color,
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             Card(
                 colors = CardDefaults.cardColors(containerColor = CyberSurfaceCard),
                 shape = RoundedCornerShape(12.dp),
@@ -286,7 +341,7 @@ fun VoiceScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        statusDialogue,
+                        statusText,
                         color = TextPrimary,
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center,
@@ -294,7 +349,7 @@ fun VoiceScreen(
                     )
 
                     if (executedActionLog != null) {
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             executedActionLog!!,
                             color = NeonEmerald,
@@ -305,79 +360,50 @@ fun VoiceScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Function Calling Quick-Tools
+            // Quick function actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilledTonalButton(
-                    onClick = { executeBrowserAction("https://youtube.com", "YouTube") },
-                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = CyberSurfaceCard)
+                    onClick = { executeQuickTool("https://youtube.com", "YouTube") },
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = CyberSurfaceCard),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = NeonDanger, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = NeonDanger, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("YouTube", fontSize = 11.sp)
                 }
 
                 FilledTonalButton(
-                    onClick = { executeBrowserAction("https://github.com", "GitHub") },
-                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = CyberSurfaceCard)
+                    onClick = {
+                        val urduDemo = "Salam Operator! Main NOVA AI hoon. Main Urdu, Hindi aur English teeno zabaano mein baat kar sakti hoon."
+                        statusText = "\"$urduDemo\""
+                        onSpeak(urduDemo)
+                    },
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = CyberSurfaceCard),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.Code, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Translate, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("GitHub", fontSize = 11.sp)
+                    Text("Urdu Vocal", fontSize = 11.sp)
                 }
 
                 FilledTonalButton(
                     onClick = {
-                        val sassyLine = "Arey suno! Flirting band karo aur kaam ki baat batao! What do you need, my charming operator? 😉"
-                        statusDialogue = "\"$sassyLine\""
-                        onSpeak(sassyLine)
+                        val hardwareTip = "Dead phone diagnostic rule: Set multimeter to diode mode. Connect Red probe to Ground and Black probe to VBAT. Normal reading is 0.350 to 0.450 Volts."
+                        statusText = "\"$hardwareTip\""
+                        onSpeak(hardwareTip)
                     },
-                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = CyberSurfaceCard)
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = CyberSurfaceCard),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = NeonPurple, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Build, contentDescription = null, tint = NeonPurple, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Tease Me", fontSize = 11.sp)
+                    Text("Hardware Tip", fontSize = 11.sp)
                 }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Bottom Control Action: Disconnect / Connect
-            Button(
-                onClick = {
-                    if (currentState != LiveVoiceState.DISCONNECTED) {
-                        currentState = LiveVoiceState.DISCONNECTED
-                        statusDialogue = "Live voice session disconnected. Tap to reconnect."
-                    } else {
-                        currentState = LiveVoiceState.CONNECTING
-                        coroutineScope.launch {
-                            delay(1000)
-                            currentState = LiveVoiceState.LISTENING
-                            val greeting = "Mahi is connected! What's up, handsome? Speak to me!"
-                            statusDialogue = "\"$greeting\""
-                            onSpeak(greeting)
-                        }
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (currentState != LiveVoiceState.DISCONNECTED) NeonDanger else NeonCyan
-                ),
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-            ) {
-                Text(
-                    if (currentState != LiveVoiceState.DISCONNECTED) "END LIVE SESSION" else "START GEMINI LIVE SESSION",
-                    color = if (currentState != LiveVoiceState.DISCONNECTED) Color.White else Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    letterSpacing = 1.sp
-                )
             }
         }
     }

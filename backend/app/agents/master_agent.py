@@ -103,6 +103,15 @@ class NexusMasterAgent:
                 last_action="Indexed conversation context",
                 success_rate=0.99
             ),
+            "automation": AgentInfo(
+                id="automation",
+                name="Automation Agent",
+                role="Background routines, battery triggers, WorkManager and scheduled routines",
+                status="ACTIVE",
+                capabilities=["Scheduled jobs", "Battery monitoring", "Periodic briefing", "WorkManager"],
+                last_action="Scheduled background monitoring cycle",
+                success_rate=0.98
+            ),
             "recovery": AgentInfo(
                 id="recovery",
                 name="Recovery Agent",

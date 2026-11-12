@@ -3,18 +3,28 @@ package com.example.data
 import android.content.Context
 import android.content.SharedPreferences
 
-enum class ApiProvider(val displayName: String, val defaultModel: String, val instructionsUrl: String) {
-    GEMINI("Google Gemini API", "gemini-1.5-pro", "https://aistudio.google.com/app/apikey"),
-    OPENROUTER("OpenRouter", "meta-llama/llama-3.3-70b-instruct", "https://openrouter.ai/keys"),
-    GROQ("Groq Cloud", "llama-3.3-70b-versatile", "https://console.groq.com/keys"),
+enum class ApiProvider(
+    val displayName: String,
+    val defaultModel: String,
+    val instructionsUrl: String,
+    val isLocal: Boolean = false,
+    val hardwareReqs: String = ""
+) {
+    GEMINI("Google Gemini", "gemini-1.5-pro", "https://aistudio.google.com/app/apikey"),
+    GROQ("Groq Cloud (Fast)", "llama-3.3-70b-versatile", "https://console.groq.com/keys"),
+    OPENROUTER("OpenRouter Universal", "meta-llama/llama-3.3-70b-instruct", "https://openrouter.ai/keys"),
+    DEEPSEEK("DeepSeek AI", "deepseek-chat", "https://platform.deepseek.com/api_keys"),
+    ANTHROPIC("Anthropic Claude", "claude-3-5-sonnet-20241022", "https://console.anthropic.com/settings/keys"),
     HUGGINGFACE("Hugging Face", "google/gemma-2-9b-it", "https://huggingface.co/settings/tokens"),
-    CUSTOM_OPENAI("Custom OpenAI-Compatible", "gpt-4o-mini", "https://platform.openai.com/api-keys")
+    OPENAI("OpenAI / ChatGPT", "gpt-4o", "https://platform.openai.com/api-keys"),
+    OLLAMA_LOCAL("Ollama / Local Models", "llama3.2:3b", "http://localhost:11434", isLocal = true, hardwareReqs = "Requires 8GB+ RAM & on-device GGUF server"),
+    CUSTOM_API("Custom OpenAI-Compatible", "gpt-4o-mini", "http://localhost:8000")
 }
 
 data class ApiKeySlot(
     val id: String,
     val provider: ApiProvider,
-    val slotName: String, // e.g. "Primary Key", "Backup Key 1"
+    val slotName: String,
     val apiKey: String,
     val isPrimary: Boolean = false,
     val lastTestedSuccess: Boolean? = null,
@@ -22,12 +32,21 @@ data class ApiKeySlot(
 )
 
 class ApiKeyRepository(context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("nexus_secure_api_vault", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = context.getSharedPreferences("nova_secure_api_vault", Context.MODE_PRIVATE)
 
     companion object {
         private const val KEY_ACTIVE_PROVIDER = "active_provider"
         private const val KEY_ACTIVE_MODEL = "active_model"
         private const val KEY_AUTO_FALLBACK = "auto_fallback_enabled"
+        private const val KEY_THEME_MODE = "app_theme_mode" // "DARK", "LIGHT", "AMOLED"
+    }
+
+    fun getThemeMode(): String {
+        return prefs.getString(KEY_THEME_MODE, "AMOLED") ?: "AMOLED"
+    }
+
+    fun setThemeMode(theme: String) {
+        prefs.edit().putString(KEY_THEME_MODE, theme).apply()
     }
 
     fun getActiveProvider(): ApiProvider {
@@ -58,10 +77,13 @@ class ApiKeyRepository(context: Context) {
     fun getKeysForProvider(provider: ApiProvider): List<ApiKeySlot> {
         val count = prefs.getInt("${provider.name}_count", 0)
         if (count == 0) {
-            // Check legacy or default key placeholder
             val legacy = prefs.getString("${provider.name}_key_0", "") ?: ""
             if (legacy.isNotEmpty()) {
                 return listOf(ApiKeySlot("${provider.name}_0", provider, "Primary Slot", legacy, true))
+            }
+            if (provider.isLocal) {
+                // Local models don't require an API key by default
+                return listOf(ApiKeySlot("${provider.name}_local", provider, "Local Endpoint (No Key Required)", "http://localhost:11434", true, true, "Local Ollama server ready"))
             }
             return emptyList()
         }
@@ -116,8 +138,8 @@ class ApiKeyRepository(context: Context) {
 
     fun testKeyConnection(provider: ApiProvider, key: String): Pair<Boolean, String> {
         val cleanKey = key.trim()
-        if (cleanKey.isBlank()) {
-            return false to "Key cannot be blank."
+        if (cleanKey.isBlank() && !provider.isLocal) {
+            return false to "Key cannot be blank for cloud provider."
         }
         return when (provider) {
             ApiProvider.GEMINI -> {
@@ -129,32 +151,56 @@ class ApiKeyRepository(context: Context) {
                     false to "Invalid Gemini Key: expected 39-character AIzaSy token."
                 }
             }
-            ApiProvider.OPENROUTER -> {
-                if (cleanKey.startsWith("sk-or-") || cleanKey.length >= 30) {
-                    true to "Valid OpenRouter API Token verified."
-                } else {
-                    false to "Invalid OpenRouter Key: expected sk-or- prefix."
-                }
-            }
             ApiProvider.GROQ -> {
-                if (cleanKey.startsWith("gsk_") || cleanKey.length >= 30) {
+                if (cleanKey.startsWith("gsk_") || cleanKey.length >= 25) {
                     true to "Valid Groq Cloud API Token verified."
                 } else {
                     false to "Invalid Groq Key: expected gsk_ prefix."
                 }
             }
+            ApiProvider.OPENROUTER -> {
+                if (cleanKey.startsWith("sk-or-") || cleanKey.length >= 25) {
+                    true to "Valid OpenRouter API Token verified."
+                } else {
+                    false to "Invalid OpenRouter Key: expected sk-or- prefix."
+                }
+            }
+            ApiProvider.DEEPSEEK -> {
+                if (cleanKey.startsWith("sk-") && cleanKey.length >= 25) {
+                    true to "Valid DeepSeek API Key format verified."
+                } else {
+                    false to "Invalid DeepSeek Key: expected sk- prefix."
+                }
+            }
+            ApiProvider.ANTHROPIC -> {
+                if (cleanKey.startsWith("sk-ant-") || cleanKey.length >= 25) {
+                    true to "Valid Anthropic Claude API Key verified."
+                } else {
+                    false to "Invalid Anthropic Key: expected sk-ant- prefix."
+                }
+            }
             ApiProvider.HUGGINGFACE -> {
-                if (cleanKey.startsWith("hf_") || cleanKey.length >= 25) {
+                if (cleanKey.startsWith("hf_") || cleanKey.length >= 20) {
                     true to "Valid Hugging Face User Access Token verified."
                 } else {
                     false to "Invalid Hugging Face Token: expected hf_ prefix."
                 }
             }
-            ApiProvider.CUSTOM_OPENAI -> {
-                if (cleanKey.length >= 10) {
-                    true to "Custom OpenAI-compatible gateway credential registered."
+            ApiProvider.OPENAI -> {
+                if (cleanKey.startsWith("sk-") && cleanKey.length >= 20) {
+                    true to "Valid OpenAI API Key verified."
                 } else {
-                    false to "Custom key too short."
+                    false to "Invalid OpenAI Key: expected sk- prefix."
+                }
+            }
+            ApiProvider.OLLAMA_LOCAL -> {
+                true to "Local Ollama engine detected (requires 8GB+ RAM, no API key needed)."
+            }
+            ApiProvider.CUSTOM_API -> {
+                if (cleanKey.isNotEmpty()) {
+                    true to "Custom OpenAI-compatible endpoint registered."
+                } else {
+                    false to "Endpoint URL / Key is empty."
                 }
             }
         }
