@@ -2,7 +2,7 @@ import time
 import httpx
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
-from .config import settings
+from ..config import settings
 
 class ModelProvider(BaseModel):
     id: str
