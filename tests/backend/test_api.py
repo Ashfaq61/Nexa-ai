@@ -1,6 +1,20 @@
+import sys
+import os
+
+# Guarantee repository root and backend directory are in sys.path in all CI environments
+_repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+_backend_root = os.path.join(_repo_root, "backend")
+for p in [_repo_root, _backend_root]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
 import pytest
 from fastapi.testclient import TestClient
-from backend.app.main import app
+
+try:
+    from backend.app.main import app
+except ModuleNotFoundError:
+    from app.main import app
 
 client = TestClient(app)
 
